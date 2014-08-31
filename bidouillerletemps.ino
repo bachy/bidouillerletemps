@@ -1,25 +1,11 @@
-// Clock Tick Demonstration
-//
-// By Matt Mets, completed in 2008
-//
-// This code is released into the public domain.  Attribution is appreciated.
-//
-// This is a demonstration on how to control a cheapo clock mechanism with an Arduino.
-// The clock mechanism works by using an electromagnet to pull a little fixed magnet,
-// similar to how a DC motor works.  To control this with the Arduino, we need to hook a
-// wire up to each side of the electromagnet (disconnect the exisiting clock circuity if
-// possible).  Then, hook each of the wires to pins on the Arduino.  I chose pins 2 and 3
-// for my circuit.  It is also a good idea to put a resistor (I chose 500 ohms) in series
-// (between one of the wires and an Arduino pin), which will limit the amount of current
-// that is applied.  Once the wires are hooked up, you take turns turning on one or the
-// other pin momentarily.  Each time you do this, the clock 'ticks' and moves forward one
-// second.  I have provided a doTick() routine to do this automatically, so it just needs
-// to be called each time you want the clock to tick.
-//
+// 2014-08-30
+// arthackdays
+// Bachir Soussi Chiadmi
+// Julien Gargot
 
 
 ////// Board Setup /////////////////////////////////////////////////////////////////////////
-extern unsigned long timer0_overflow_count;
+extern float timer0_overflow_count;
 
 int clockA = 2;          // Set these to the pin numbers you have attached the clock wires
 int clockB = 3;          // to.  Order is not important.
@@ -39,14 +25,13 @@ void setup()
   Serial.begin(9600);
 }
 
-
 // Move the second hand forward one position (one second on the clock face).
-void doTick() {
-
+void triggClock() {
+  // Serial.println("triggClock");
   // Energize the electromagnet in the correct direction.
-  digitalWrite(tickPin, HIGH);
-  delay(10);
   digitalWrite(tickPin, LOW);
+  delay(10);
+  digitalWrite(tickPin, HIGH);
 
   // Switch the direction so it will fire in the opposite way next time.
   if (tickPin == clockA)
@@ -61,18 +46,71 @@ void doTick() {
 // Main loop
 void loop()
 {
-  unsigned long startTime = millis();
-  unsigned long temp;
+  /*
+  float startTime = millis();
+  float temp;
 
   // Pretend to be a regular clock, and tick once a second.
   while (true)
   {
     startTime += 1000;
-
+    Serial.println(startTime);
     // Wait until a second has passed.  Note that this will do ugly things when millis()
     // runs over, so we only have about 9 hours before this version will stop working.
     while (startTime - millis() > 0) {}
 
     doTick();
+  }
+  */
+
+  int frame_hz = 100; // in milliseconds -> 100 = 10fps
+  unsigned long cur_frame = 0;
+  float nextFrameTime = frame_hz;
+  float easingLoopDuration = 12000; // in frame
+  float alpha;
+  // int farfrommiddle = 0;
+
+  // float nextClockFrame = 1000;
+  float nextClockFrame = 10;// = easeInOutQuint(nextFrameTime, easingLoopStartFrame, easingLoopEndFrame, easingLoopDuration);
+
+  // Serial.print("nextClockFrame : ");
+  // Serial.println(nextClockFrame);
+
+  // Pretend to be a regular clock, and tick once a second.
+  while (true)
+  {
+    // Wait until a fps has passed.  Note that this will do ugly things when millis()
+    // runs over, so we only have about 9 hours before this version will stop working.
+    while (nextFrameTime - millis() > 0) {}
+
+    // reset the loop values at the end of the real time loop
+    if( easingLoopDuration - cur_frame <= 0){
+      // Serial.println("| | | | | | | | | | reset loop values | | | | | | | | | |");
+
+      cur_frame = 0;
+      nextClockFrame = 10;
+    }
+
+    // trigg clock on altered time
+    // generate next altered time value with easing regarding the real time and reali time loop values
+    if( nextClockFrame - cur_frame <= 0){
+      alpha = cur_frame / (easingLoopDuration/2);
+
+      if(cur_frame <= easingLoopDuration/2){
+        alpha += 0.5;
+      }else{
+        alpha = 2.5 - alpha;
+      }
+
+      // Serial.print("alpha = ");
+      // Serial.println(alpha);
+
+      nextClockFrame += 10*alpha;
+
+      triggClock();
+    }
+
+    nextFrameTime += frame_hz;
+    cur_frame ++;
   }
 }
