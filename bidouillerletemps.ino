@@ -1,25 +1,6 @@
-// Clock Tick Demonstration
-//
-// By Matt Mets, completed in 2008
-//
-// This code is released into the public domain.  Attribution is appreciated.
-//
-// This is a demonstration on how to control a cheapo clock mechanism with an Arduino.
-// The clock mechanism works by using an electromagnet to pull a little fixed magnet,
-// similar to how a DC motor works.  To control this with the Arduino, we need to hook a
-// wire up to each side of the electromagnet (disconnect the exisiting clock circuity if
-// possible).  Then, hook each of the wires to pins on the Arduino.  I chose pins 2 and 3
-// for my circuit.  It is also a good idea to put a resistor (I chose 500 ohms) in series
-// (between one of the wires and an Arduino pin), which will limit the amount of current
-// that is applied.  Once the wires are hooked up, you take turns turning on one or the
-// other pin momentarily.  Each time you do this, the clock 'ticks' and moves forward one
-// second.  I have provided a doTick() routine to do this automatically, so it just needs
-// to be called each time you want the clock to tick.
-//
-
 
 ////// Board Setup /////////////////////////////////////////////////////////////////////////
-extern unsigned long timer0_overflow_count;
+extern float timer0_overflow_count;
 
 int clockA = 2;          // Set these to the pin numbers you have attached the clock wires
 int clockB = 3;          // to.  Order is not important.
@@ -39,14 +20,13 @@ void setup()
   Serial.begin(9600);
 }
 
-
 // Move the second hand forward one position (one second on the clock face).
-void doTick() {
-
+void triggClock() {
+  Serial.println("triggClock");
   // Energize the electromagnet in the correct direction.
-  digitalWrite(tickPin, HIGH);
-  delay(10);
   digitalWrite(tickPin, LOW);
+  delay(10);
+  digitalWrite(tickPin, HIGH);
 
   // Switch the direction so it will fire in the opposite way next time.
   if (tickPin == clockA)
@@ -61,18 +41,144 @@ void doTick() {
 // Main loop
 void loop()
 {
-  unsigned long startTime = millis();
-  unsigned long temp;
+  /*
+  float startTime = millis();
+  float temp;
 
   // Pretend to be a regular clock, and tick once a second.
   while (true)
   {
     startTime += 1000;
-
+    Serial.println(startTime);
     // Wait until a second has passed.  Note that this will do ugly things when millis()
     // runs over, so we only have about 9 hours before this version will stop working.
     while (startTime - millis() > 0) {}
 
     doTick();
   }
+  */
+
+  int frame_hz = 100; // in milliseconds
+  unsigned long cur_frame = 0;
+  float nextFrameTime = frame_hz;
+  float easingLoopDuration = 600; // in frame (meaning 10 frame per second)
+  // float easingLoopStartFrame = 0; // in frame (meaning 10 frame per second)
+  // float easingLoopEndFrame = easingLoopDuration; // in frame (meaning 10 frame per second)
+
+  Serial.print("nextFrameTime : ");
+  Serial.println(nextFrameTime);
+
+  Serial.print("easingLoopDuration : ");
+  Serial.println(easingLoopDuration);
+
+  // Serial.print("easingLoopStartFrame : ");
+  // Serial.println(easingLoopStartFrame);
+
+  // Serial.print("easingLoopEndFrame : ");
+  // Serial.println(easingLoopEndFrame);
+
+  // float nextClockFrame = 1000;
+  float nextClockFrame;// = easeInOutQuint(nextFrameTime, easingLoopStartFrame, easingLoopEndFrame, easingLoopDuration);
+
+  Serial.print("nextClockFrame : ");
+  Serial.println(nextClockFrame);
+
+  // Pretend to be a regular clock, and tick once a second.
+  while (true)
+  {
+    // Serial.print("nextFrameTime : ");
+    // Serial.println(nextFrameTime);
+
+    // Wait until a fps has passed.  Note that this will do ugly things when millis()
+    // runs over, so we only have about 9 hours before this version will stop working.
+    while (nextFrameTime - millis() > 0) {}
+
+    // reset the loop values at the end of the real time loop
+    if( easingLoopDuration - cur_frame <= 0){
+      Serial.println("| | | | | | | | | | reset loop values | | | | | | | | | |");
+
+      Serial.print("easingLoopDuration : ");
+      Serial.println(easingLoopDuration);
+
+      // easingLoopStartFrame = cur_frame; // starting point of the loop (now)
+      // easingLoopEndFrame = cur_frame+easingLoopDuration; // ending point of the loop (now + loop duration)
+
+      // Serial.print("easingLoopStartFrame : ");
+      // Serial.println(easingLoopStartFrame);
+
+      // Serial.print("easingLoopEndFrame : ");
+      // Serial.println(easingLoopEndFrame);
+
+      cur_frame = 0;
+    }
+
+    // trigg clock on altered time
+    // generate next altered time value with easing regarding the real time and reali time loop values
+    if( nextClockFrame - cur_frame <= 0){
+      Serial.println("| | | nextClockFrame over");
+
+      // nextClockFrame += 1000;
+      // current time, stat_value, change in value, duration
+      nextClockFrame = noEase(cur_frame, 0, 600, easingLoopDuration);
+      // nextClockFrame = easeInOutQuint(nextFrameTime - easingLoopStartFrame, easingLoopStartFrame, easingLoopEndFrame, easingLoopDuration);
+      nextClockFrame *= 100;
+
+      Serial.print("nextClockFrame : ");
+      Serial.println(nextClockFrame);
+
+      triggClock();
+    }
+
+    nextFrameTime += frame_hz;
+    cur_frame ++;
+  }
 }
+
+float noEase(float t, float b, float c, float d) {
+  return c*t/d + b;
+};
+
+float easeInOutQuint(float t, float b, float c, float d) {
+  // t: current time
+  // b: start value
+  // c: change in value
+  // d: duration
+  // (t and d can be frames ou secondes/milliseconds)
+
+  Serial.println("// // EASE");
+
+  Serial.print("current frame = ");
+  Serial.println(t);
+
+  Serial.print("start value = ");
+  Serial.println(b);
+
+  Serial.print("change in value = ");
+  Serial.println(c);
+
+  Serial.print("duration = ");
+  Serial.println(d);
+
+  // Serial.print("t = ");
+  // Serial.println(t);
+
+  // t /= d/2;
+  t = t/(d/2);
+
+  Serial.print("t = ");
+  Serial.println(t);
+
+  float ret;
+
+  if (t < 1){
+    ret = c/2*t*t*t*t*t + b;
+  }else{
+    t -= 2;
+    ret = c/2*(t*t*t*t*t + 2) + b;
+  }
+
+  return ret;
+}
+
+
+
